@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDFC AI MailRoom Admin Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <div class="logo-glow"></div>
+                <i class="fa-solid fa-server-dns icon-main"></i>
+                <div class="logo-text">
+                    <h1>HDFC <span>MailRoom AI</span></h1>
+                    <span class="badge-status"><span class="pulse-dot"></span>Core Systems Active</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="api-key-badge">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Gemini-1.5-Flash</span>
+                </div>
+                <div class="system-time">
+                    <i class="fa-regular fa-clock"></i>
+                    <span id="live-clock">2026-05-25 23:56</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <main class="app-body">
+            
+            <!-- Left Side: Inbox & DB Setup -->
+            <section class="panel-left">
+                
+                <!-- Inbox Section -->
+                <div class="card card-inbox">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-inbox"></i> Customer Mailbox</h2>
+                        <span class="badge-count">5 Scenarios</span>
+                    </div>
+                    <div class="inbox-scenarios">
+                        <button class="scenario-btn active" onclick="loadScenario(1)">
+                            <div class="scenario-meta">
+                                <span class="sender-name">John Doe</span>
+                                <span class="scenario-label">Scenario 1</span>
+                            </div>
+                            <h3>Account Balance Enquiry</h3>
+                            <p>Request balance for account 1234567890</p>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario(2)">
+                            <div class="scenario-meta">
+                                <span class="sender-name">John Doe</span>
+                                <span class="scenario-label">Scenario 2</span>
+                            </div>
+                            <h3>Credit Card Usage</h3>
+                            <p>Share last 5 card transactions for 4567XXXX8901</p>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario(3)">
+                            <div class="scenario-meta">
+                                <span class="sender-name">John Doe</span>
+                                <span class="scenario-label">Scenario 3</span>
+                            </div>
+                            <h3>Account Statement</h3>
+                            <p>Request statement for April 2026</p>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario(4)">
+                            <div class="scenario-meta">
+                                <span class="sender-name">John Doe</span>
+                                <span class="scenario-label">Scenario 4</span>
+                            </div>
+                            <h3>Multi-Intent Request</h3>
+                            <p>Balance account 1234567890 + transactions card 987654321</p>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario(5)">
+                            <div class="scenario-meta">
+                                <span class="sender-name">John Doe</span>
+                                <span class="scenario-label">Scenario 5</span>
+                            </div>
+                            <h3>Partial Validation Failure</h3>
+                            <p>Account 1234567890 (valid) + Card 999999999 (invalid)</p>
+                        </button>
+                    </div>
+
+                    <div class="custom-composer-header">
+                        <h3><i class="fa-solid fa-pen-fancy"></i> Custom Email Composer</h3>
+                    </div>
+                    <form id="email-form" class="email-composer" onsubmit="submitEmail(event)">
+                        <div class="form-group">
+                            <label for="email-sender">Sender Email:</label>
+                            <input type="email" id="email-sender" required value="johndoe@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="email-subject">Subject:</label>
+                            <input type="text" id="email-subject" required value="Urgent Account Query">
+                        </div>
+                        <div class="form-group">
+                            <label for="email-body">Email Message:</label>
+                            <textarea id="email-body" rows="5" required>Please provide my savings account balance for account number 1234567890.</textarea>
+                        </div>
+                        <div class="composer-actions" style="display: flex; gap: 8px;">
+                            <button type="submit" id="btn-process" class="btn btn-primary" style="flex: 1;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Process with AI
+                            </button>
+                            <button type="button" onclick="saveAsScenario()" class="btn btn-xs" style="height: 38px; border-radius: 6px; padding: 0 12px; margin-top: 0; background-color: #172030; border-color: var(--border-color); color: var(--accent-teal);" title="Save current text as a new Inbox Scenario">
+                                <i class="fa-solid fa-folder-plus"></i> Save Scenario
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Database Control Panel -->
+                <div class="card card-database">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-database"></i> Core Systems Database</h2>
+                        <button class="btn btn-xs" onclick="fetchDatabaseState()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                    </div>
+                    <div class="db-tabs">
+                        <button class="db-tab-btn active" onclick="switchDbTab('accounts')">Accounts</button>
+                        <button class="db-tab-btn" onclick="switchDbTab('cards')">Credit Cards</button>
+                    </div>
+                    
+                    <!-- Accounts DB Content -->
+                    <div id="db-accounts-panel" class="db-tab-content active">
+                        <div class="db-table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Account No</th>
+                                        <th>Customer</th>
+                                        <th>Balance (INR)</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="accounts-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <form class="db-mini-add" onsubmit="addAccount(event)">
+                            <input type="text" id="add-acc-num" placeholder="Account No" required size="10">
+                            <input type="text" id="add-acc-name" placeholder="Name" required>
+                            <input type="number" id="add-acc-bal" placeholder="Balance" required>
+                            <button type="submit"><i class="fa-solid fa-plus"></i></button>
+                        </form>
+                    </div>
+
+                    <!-- Cards DB Content -->
+                    <div id="db-cards-panel" class="db-tab-content">
+                        <div class="db-table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Card Number</th>
+                                        <th>Cardholder</th>
+                                        <th>Limit (INR)</th>
+                                        <th>Available</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cards-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <form class="db-mini-add" onsubmit="addCard(event)">
+                            <input type="text" id="add-card-num" placeholder="Card No" required>
+                            <input type="text" id="add-card-name" placeholder="Name" required>
+                            <input type="number" id="add-card-avail" placeholder="Available Limit" required>
+                            <button type="submit"><i class="fa-solid fa-plus"></i></button>
+                        </form>
+                    </div>
+                </div>
+
+            </section>
+            
+            <!-- Middle & Right Side: Pipeline visualizer and Mail draft -->
+            <section class="panel-right-flow">
+                
+                <!-- Visual Pipeline Diagram -->
+                <div class="card card-pipeline">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-diagram-project"></i> Agent Orchestrator Pipeline Visualizer</h2>
+                        <div class="pipeline-legend">
+                            <span class="legend-item"><span class="dot dot-idle"></span> Idle</span>
+                            <span class="legend-item"><span class="dot dot-active"></span> Processing</span>
+                            <span class="legend-item"><span class="dot dot-done"></span> Completed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pipeline-graph">
+                        
+                        <!-- Row 1: Input -->
+                        <div class="graph-row">
+                            <div class="node node-input" id="node-email-input">
+                                <i class="fa-solid fa-envelope-open-text"></i>
+                                <span>Incoming Email</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-vertical"></div>
+
+                        <!-- Row 2: Understanding -->
+                        <div class="graph-row">
+                            <div class="node node-agent" id="node-understanding" onclick="inspectNode('EmailUnderstandingAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-brain"></i>
+                                <strong>Understanding Agent</strong>
+                                <span class="node-label">Pre-processes text</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-vertical"></div>
+
+                        <!-- Row 3: Intent & Sentiment & Extraction -->
+                        <div class="graph-row-three">
+                            <div class="node node-agent" id="node-intent" onclick="inspectNode('IntentClassificationAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-tags"></i>
+                                <strong>Intent Classification</strong>
+                                <span class="node-label">Detects requests</span>
+                            </div>
+                            
+                            <div class="node node-agent" id="node-sentiment" onclick="inspectNode('SentimentAnalysisAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-face-smile"></i>
+                                <strong>Sentiment Analysis</strong>
+                                <span class="node-label">Detects emotion</span>
+                            </div>
+                            
+                            <div class="node node-agent" id="node-extraction" onclick="inspectNode('EntityExtractionAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <strong>Entity Extraction</strong>
+                                <span class="node-label">Extracts numbers/dates</span>
+                            </div>
+                        </div>
+
+                        <!-- Complex routing lines -->
+                        <div class="connector-complex">
+                            <div class="connector-arm left"></div>
+                            <div class="connector-arm right"></div>
+                        </div>
+
+                        <!-- Row 4: Validation -->
+                        <div class="graph-row">
+                            <div class="node node-agent" id="node-validation" onclick="inspectNode('ValidationAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <strong>Validation Agent</strong>
+                                <span class="node-label">Queries DB for details</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-vertical"></div>
+
+                        <!-- Row 5: API Router & Core Banking API execution -->
+                        <div class="graph-row-two">
+                            <div class="node node-agent" id="node-selection" onclick="inspectNode('APISelectionAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-route"></i>
+                                <strong>API Selection Agent</strong>
+                                <span class="node-label">Determines routing</span>
+                            </div>
+                            
+                            <div class="node node-system" id="node-banking-apis" onclick="inspectNode('CoreBankingAPIs')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-building-columns"></i>
+                                <strong>Core Banking APIs</strong>
+                                <span class="node-label">Executes core queries</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-complex">
+                            <div class="connector-arm left"></div>
+                            <div class="connector-arm right"></div>
+                        </div>
+
+                        <!-- Row 6: Response Draft -->
+                        <div class="graph-row">
+                            <div class="node node-agent" id="node-response" onclick="inspectNode('ResponseGenerationAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                <strong>Response Generator</strong>
+                                <span class="node-label">Drafts professional reply</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-vertical"></div>
+
+                        <!-- Row 7: Audit -->
+                        <div class="graph-row">
+                            <div class="node node-agent" id="node-auditor" onclick="inspectNode('AuditorAgent')">
+                                <div class="node-status"></div>
+                                <i class="fa-solid fa-file-shield"></i>
+                                <strong>Auditor Agent</strong>
+                                <span class="node-label">Verifies safety & redacts</span>
+                            </div>
+                        </div>
+
+                        <div class="connector-vertical"></div>
+
+                        <!-- Row 8: Output -->
+                        <div class="graph-row">
+                            <div class="node node-output" id="node-email-output">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Sent Response Email</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Inspector panel for clicked agent nodes -->
+                <div class="card card-inspector" id="node-inspector">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-terminal"></i> Node Details Inspector</h2>
+                        <span class="inspector-node-name" id="inspect-title">Click an agent node to inspect</span>
+                    </div>
+                    <div class="inspector-body">
+                        <pre id="inspect-content">// Agent input/output payload will appear here...</pre>
+                    </div>
+                </div>
+
+                <!-- Final Response Output (Email Client simulation) -->
+                <div class="card card-reply" id="email-reply-card">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <h2 style="margin: 0;"><i class="fa-solid fa-reply-all"></i> Generated Response Client View</h2>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <button class="btn btn-xs" onclick="copyResponseToClipboard()" style="background-color: #0d121c; color: var(--accent-green); border-color: rgba(16, 185, 129, 0.3); height: 26px; font-weight: 600;" id="btn-copy-email" title="Copy reply email to clipboard">
+                                <i class="fa-solid fa-copy"></i> Copy Email
+                            </button>
+                            <div class="reply-metrics" id="metrics-panel">
+                                <span>Sentiment: <strong id="val-sentiment" class="neutral">NEUTRAL</strong></span>
+                                <span>Confidence: <strong id="val-confidence">0.0%</strong></span>
+                                <span>Time: <strong id="val-time">0 ms</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="email-client-view">
+                        <div class="email-meta-fields">
+                            <div><span>To:</span> <strong id="reply-to">customer@example.com</strong></div>
+                            <div><span>Subject:</span> <strong id="reply-subj">Re: Account Query</strong></div>
+                        </div>
+                        <div class="email-message-body" id="reply-body">
+                            No email processed yet. Use the composer or click a scenario, then select "Process with AI Agents" to start.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Audit Log Panel -->
+                <div class="card card-logs">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-square-poll-horizontal"></i> Real-time System Audit Stream</h2>
+                        <button class="btn btn-xs btn-clear" onclick="clearLogs()"><i class="fa-solid fa-trash-can"></i> Clear logs</button>
+                    </div>
+                    <div class="log-stream-terminal" id="log-terminal">
+                        <div class="log-line system">Ready for input. Select a customer scenario to begin...</div>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Javascript integration -->
+    <script src="app.js"></script>
+</body>
+</html>

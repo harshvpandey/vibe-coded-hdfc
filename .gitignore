@@ -1,0 +1,16 @@
+# Virtual Environment
+venv/
+
+# Environment Variables / Credentials
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Local Logs
+logs/
+
+# Diagnostic Scripts
+check_models.py
+extract_docx.py
