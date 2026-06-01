@@ -3,7 +3,8 @@ import httpx
 from typing import Dict, Any
 from models.schemas import AgentState
 from config import settings
-from utils import database
+from utils import database, email_service, sql_guardrails
+from utils.database import SessionLocal
 from utils.logger import log_agent_execution, log_api_call
 
 # Import Agents and prompts
@@ -36,13 +37,37 @@ class EmailOrchestrator:
         except:
             use_http = False
 
+        sql_query = args.get("sql_query")
+
         if api_name == "GetAccountBalanceAPI":
             account_number = args.get("account_number")
+            
+            # Safe Dynamic SQL Execution Path
+            if sql_query and "customer_accounts_view" in sql_query:
+                try:
+                    with SessionLocal() as session:
+                        rows = sql_guardrails.execute_safe_query(
+                            session=session,
+                            raw_sql=sql_query,
+                            account_number=account_number
+                        )
+                        return {
+                            "status": "SUCCESS",
+                            "sql_executed": True,
+                            "account_number": account_number,
+                            "results": rows
+                        }
+                except Exception as e:
+                    # Log exception and fallback to deterministic route
+                    pass
+
             if use_http:
                 try:
                     with httpx.Client(timeout=2.0) as client:
                         r = client.post(f"{settings.API_URL}/api/bank/account-balance", json={"account_number": str(account_number)})
                         return r.json()
+                except httpx.TimeoutException:
+                    return {"status": "FAILURE", "error": "Request timed out while connecting to Core Banking systems. Please try again shortly."}
                 except Exception as e:
                     return {"status": "FAILURE", "error": f"HTTP connection failed: {str(e)}"}
             else:
@@ -56,11 +81,33 @@ class EmailOrchestrator:
         elif api_name == "GetCardTransactionsAPI":
             card_number = args.get("card_number")
             limit = args.get("limit", 5)
+            
+            # Safe Dynamic SQL Execution Path
+            if sql_query and "customer_transactions_view" in sql_query:
+                try:
+                    with SessionLocal() as session:
+                        rows = sql_guardrails.execute_safe_query(
+                            session=session,
+                            raw_sql=sql_query,
+                            card_number=card_number
+                        )
+                        return {
+                            "status": "SUCCESS",
+                            "sql_executed": True,
+                            "card_number": card_number,
+                            "results": rows[:limit]
+                        }
+                except Exception as e:
+                    # Log exception and fallback to deterministic route
+                    pass
+
             if use_http:
                 try:
                     with httpx.Client(timeout=2.0) as client:
                         r = client.post(f"{settings.API_URL}/api/bank/card-transactions", json={"card_number": str(card_number), "limit": int(limit)})
                         return r.json()
+                except httpx.TimeoutException:
+                    return {"status": "FAILURE", "error": "Request timed out while connecting to Core Banking systems. Please try again shortly."}
                 except Exception as e:
                     return {"status": "FAILURE", "error": f"HTTP connection failed: {str(e)}"}
             else:
@@ -74,11 +121,33 @@ class EmailOrchestrator:
         elif api_name == "GetStatementAPI":
             account_number = args.get("account_number")
             period = args.get("period", "April 2026")
+            
+            # Safe Dynamic SQL Execution Path
+            if sql_query and "customer_statements_view" in sql_query:
+                try:
+                    with SessionLocal() as session:
+                        rows = sql_guardrails.execute_safe_query(
+                            session=session,
+                            raw_sql=sql_query,
+                            account_number=account_number
+                        )
+                        return {
+                            "status": "SUCCESS",
+                            "sql_executed": True,
+                            "account_number": account_number,
+                            "results": rows
+                        }
+                except Exception as e:
+                    # Log exception and fallback to deterministic route
+                    pass
+
             if use_http:
                 try:
                     with httpx.Client(timeout=2.0) as client:
                         r = client.post(f"{settings.API_URL}/api/bank/statement", json={"account_number": str(account_number), "period": str(period)})
                         return r.json()
+                except httpx.TimeoutException:
+                    return {"status": "FAILURE", "error": "Request timed out while connecting to Core Banking systems. Please try again shortly."}
                 except Exception as e:
                     return {"status": "FAILURE", "error": f"HTTP connection failed: {str(e)}"}
             else:
@@ -92,7 +161,7 @@ class EmailOrchestrator:
 
         return {"status": "FAILURE", "error": f"Unknown API action: {api_name}"}
 
-    def process_email(self, sender: str, subject: str, body: str) -> AgentState:
+    def process_email(self, sender: str, subject: str, body: str, msg_id: str = None) -> AgentState:
         """Runs the complete multi-agent orchestrator flow with LLM Batching optimization"""
         start_time_all = time.time()
         self.initialize_agents()
@@ -177,10 +246,15 @@ class EmailOrchestrator:
         # --- STEP 3: DETERMINISTIC API ROUTER (Python Routing - 0 ms) ---
         # Instead of wasting another rate-limited LLM request, we select routing deterministically
         selected_apis = []
+        sql_query = entities.get("sql_query")
+        
         if "ACCOUNT_BALANCE" in intents and state.validation_results.get("account_validated"):
             selected_apis.append({
                 "api": "GetAccountBalanceAPI",
-                "args": {"account_number": entities.get("account_number")}
+                "args": {
+                    "account_number": entities.get("account_number"),
+                    "sql_query": sql_query
+                }
             })
             
         if "CARD_TRANSACTIONS" in intents and state.validation_results.get("card_validated"):
@@ -188,7 +262,8 @@ class EmailOrchestrator:
                 "api": "GetCardTransactionsAPI",
                 "args": {
                     "card_number": entities.get("card_number"),
-                    "limit": entities.get("transaction_limit", 5)
+                    "limit": entities.get("transaction_limit", 5),
+                    "sql_query": sql_query
                 }
             })
             
@@ -197,7 +272,8 @@ class EmailOrchestrator:
                 "api": "GetStatementAPI",
                 "args": {
                     "account_number": entities.get("account_number"),
-                    "period": entities.get("statement_period", "April 2026")
+                    "period": entities.get("statement_period", "April 2026"),
+                    "sql_query": sql_query
                 }
             })
             
@@ -258,5 +334,43 @@ class EmailOrchestrator:
         total_duration = int((time.time() - start_time_all) * 1000)
         state.execution_time_ms = total_duration
         state.agent_logs = trace
+        
+        # --- NEW: AUTO-SEND & QUEUE ROUTING RULE ---
+        supported_intents = {"ACCOUNT_BALANCE", "CARD_TRANSACTIONS", "STATEMENT_REQUEST"}
+        has_supported_intent = any(intent in supported_intents for intent in intents)
+        
+        if has_supported_intent and state.confidence_score > settings.AUTO_SEND_THRESHOLD:
+            # High confidence support query -> Auto Send
+            email_sent = email_service.send_reply_email(sender, f"Re: {subject}", state.draft_response)
+            if email_sent:
+                state.status = "AUTO_SENT"
+            else:
+                state.status = "PENDING_REVIEW"
+        else:
+            # Low confidence or out-of-scope query -> human review
+            state.status = "PENDING_REVIEW"
+            
+        # --- NEW: SAVE EMAIL TRANSACTION TO QUEUE DATABASE ---
+        if not msg_id:
+            import hashlib
+            import random
+            h = hashlib.md5(f"{sender}_{subject}_{time.time()}".encode()).hexdigest()[:6]
+            msg_id = f"sim_run_{h}"
+            
+        database.add_email_to_db(
+            email_id=msg_id,
+            sender=sender,
+            subject=subject,
+            body=body,
+            status=state.status,
+            confidence_score=state.confidence_score,
+            draft_response=state.draft_response,
+            intents=state.intents,
+            sentiment=state.sentiment,
+            entities=state.entities,
+            validation_results=state.validation_results,
+            api_responses=state.api_responses,
+            agent_logs=state.agent_logs
+        )
         
         return state

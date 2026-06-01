@@ -18,6 +18,13 @@ Extract the following entities:
 - "statement_period": Month and year related to statement requests (e.g. "April 2026").
 - "transaction_limit": Number of transactions requested (default to 5).
 - "customer_name": Name of the sender if signed at the bottom of the email.
+- "sql_query": Generate a safe, parameter-less SQLite query against our whitelisted curated views if the request involves transaction history, statements, or balance lookups. 
+  - Whitelisted Views and Fields:
+    1. customer_accounts_view (fields: account_number, customer_name, balance, currency, status)
+    2. customer_transactions_view (fields: card_number, date, merchant, amount, type)
+    3. customer_statements_view (fields: account_number, period, filename, size, download_url)
+  - Strict Security Guardrail: NEVER put raw account numbers, card numbers, or names in the SQL query text (e.g. NEVER add WHERE card_number = '...' or WHERE account_number = '...'). The python backend automatically wraps your query inside an outer tenant isolation subquery block and applies validated session-level parameters. Simply select the fields you need (e.g. SELECT date, merchant, amount FROM customer_transactions_view).
+  - SQLite compatibility: Always specify a LIMIT (e.g. LIMIT 5) if transactions are requested.
 
 You MUST output your response in raw JSON format matching this schema:
 {
@@ -33,7 +40,8 @@ You MUST output your response in raw JSON format matching this schema:
     "card_number": "4567XXXX8901" or null,
     "statement_period": "April 2026" or null,
     "transaction_limit": 5,
-    "customer_name": "John Doe" or null
+    "customer_name": "John Doe" or null,
+    "sql_query": "SELECT date, merchant, amount FROM customer_transactions_view LIMIT 5" or null
   }
 }
 Do not include any explanation outside of the JSON."""

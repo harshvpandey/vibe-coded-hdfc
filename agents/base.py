@@ -1,47 +1,50 @@
 import json
 import time
-import google.generativeai as genai
+import httpx
 from config import settings
 from utils.logger import log_agent_execution
 
 class BaseAgent:
     def __init__(self, name: str, system_instruction: str):
+        """Initializes the Agent with systemic instructions and maps Ollama endpoint config"""
         self.name = name
         self.system_instruction = system_instruction
-        
-        # Configure Gemini API
-        if settings.GOOGLE_API_KEY:
-            genai.configure(api_key=settings.GOOGLE_API_KEY)
-            # Use gemini-2.5-flash-lite as the primary fast and accurate model
-            self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash-lite",
-                system_instruction=system_instruction
-            )
-        else:
-            raise ValueError("GOOGLE_API_KEY not configured. Please supply a valid Google API Key.")
+        self.model_name = settings.OLLAMA_MODEL
+        self.api_url = settings.OLLAMA_API_URL
 
     def run_llm(self, prompt: str, enforce_json: bool = True) -> dict:
-        """Executes the prompt against Gemini, handles logging, and parses JSON output if requested"""
+        """Executes the prompt against local Ollama, handles logging, and parses JSON output if requested"""
         start_time = time.time()
         inputs = {"prompt": prompt}
         
-        generation_config = {}
+        # Prepare the standard chat completion payload for Ollama
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": self.system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": False
+        }
+        
+        # Enforce structured JSON formatting directly at the LLM level
         if enforce_json:
-            generation_config["response_mime_type"] = "application/json"
+            payload["format"] = "json"
             
         try:
-            # Generate content
-            response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config
-            )
-            
-            text_response = response.text.strip()
+            # Send sync POST request to local Ollama chat endpoint
+            with httpx.Client(timeout=None) as client:
+                response = client.post(self.api_url, json=payload)
+                response.raise_for_status()
+                res_data = response.json()
+                
+            # Extract content from the chat response structure
+            text_response = res_data["message"]["content"].strip()
             
             # Parse output
             if enforce_json:
                 try:
-                    # Clean up markdown code block wrappers if Gemini still includes them despite MIME type
+                    # Strip markdown blocks if returned
                     if text_response.startswith("```json"):
                         text_response = text_response.split("```json", 1)[1].rsplit("```", 1)[0].strip()
                     elif text_response.startswith("```"):
@@ -50,7 +53,7 @@ class BaseAgent:
                     parsed_output = json.loads(text_response)
                 except Exception as json_err:
                     parsed_output = {
-                        "error": "Failed to parse JSON response from LLM",
+                        "error": "Failed to parse JSON response from Ollama",
                         "raw_response": text_response,
                         "exception": str(json_err)
                     }

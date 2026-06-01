@@ -1,0 +1,32 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Git
+.git/
+.gitignore
+
+# Database (SQLite is created at runtime)
+*.db
+
+# Logs (created at runtime)
+logs/
+
+# Secrets — inject via Docker env vars or mounted secrets
+.env
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Misc
+.kilo/
+*.docx

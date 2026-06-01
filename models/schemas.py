@@ -76,6 +76,9 @@ class AgentState(BaseModel):
     subject: str
     body: str
     
+    # Ingestion Routing Status
+    status: Optional[str] = "PENDING_REVIEW" # PENDING_REVIEW, AUTO_SENT, MANUALLY_SENT, REJECTED
+    
     # 1. Understanding output
     cleaned_body: Optional[str] = None
     language: Optional[str] = "English"
